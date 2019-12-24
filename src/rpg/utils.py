@@ -38,8 +38,8 @@ class Point:
 
     def distance(self, x: int = 0, y: int = 0, another: Point = None) -> int:
         if another is not None:
-            return Point.dst(self._x, another.x, self._y, another.y)
-        return Point.dst(self._x, x, self._y, y)
+            return Point.dst(self._x, self._y, another.x, another.y)
+        return Point.dst(self._x, self._y, x, y)
 
     def __eq__(self, other: Any) -> bool:
         if type(other) != Point:
