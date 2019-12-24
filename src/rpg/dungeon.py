@@ -90,6 +90,7 @@ class Tiles:
 
     SPRITE = {
         TILE_FLOOR: (2, 0),
+        TILE_GROUND: (2, 5),
         TILE_CORRIDOR: (2, 1),
         TILE_WALL_H: (1, 2),
         TILE_WALL_V: (0, 2),
@@ -323,6 +324,8 @@ class _Generator:
 
 
 class Dungeon:
+    TILE_NOT_VISITED = 0
+    TILE_VISITED = 1
 
     MOVEMENT_ALLOWED = (
         Tiles.TILE_DOOR,
@@ -346,8 +349,10 @@ class Dungeon:
         generator = _Generator(width, height, progress)
         generator.run()
         self._data = generator.data()
+        self._fog_of_war = Grid(width, height, Dungeon.TILE_NOT_VISITED)
         self._rooms = generator.rooms()
         self._hero_position = Point(*self._rooms[0].center())
+        self.update_visible()
 
     def area(self, area: Rect) -> Grid:
         return self._data.copy(*area.bounds())
@@ -365,12 +370,28 @@ class Dungeon:
         return self._data.get(x, y)
 
     def is_movement_possible(self, x: int, y: int, dx: int, dy: int) -> bool:
+        if dx == 0 and dy == 0:  # None movement is impossible
+            return False
         new_x = x + dx
         new_y = y + dy
         if not self._data.in_bounds(new_x, new_y):
             return False
         cell_type = self._data.get(new_x, new_y)
         return cell_type in Dungeon.MOVEMENT_ALLOWED
+
+    def is_visited(self, x: int, y: int) -> bool:
+        return self._fog_of_war.get(x, y) == Dungeon.TILE_VISITED
+
+    def update_visible(self) -> None:
+        dist = 7  # 14 solved eq. used for brightness function 0.25 + 4 / distance > 0.5
+        start_x = max(0, self._hero_position.x - dist)
+        start_y = max(0, self._hero_position.y - dist)
+        end_x = min(self._fog_of_war.width(), self._hero_position.x + dist)
+        end_y = min(self._fog_of_war.height(), self._hero_position.y + dist)
+        for x in range(start_x, end_x):
+            for y in range(start_y, end_y):
+                if self._hero_position.distance(x, y) <= dist:
+                    self._fog_of_war.put(x, y, Dungeon.TILE_VISITED)
 
 
 if __name__ == '__main__':

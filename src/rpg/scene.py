@@ -33,7 +33,7 @@ class SpriteSheet:
     def tile_height(self) -> int:
         return self._tile_height
 
-    def draw(self, surface: Surface, tile_row: int, tile_col: int, x: int, y: int, brightness: float) -> None:
+    def draw(self, surface: Surface, tile_row: int, tile_col: int, x: int, y: int, brightness: float = 1.0) -> None:
         _brightness = int(round(brightness * 1000.0))
         if _brightness == 0:
             return

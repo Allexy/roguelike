@@ -37,8 +37,9 @@ class SceneGame(AbstractScene):
         if pressed_keys[K_DOWN]:
             hero_dy = 1
 
-        if self._dungeon.is_movement_possible(*self._hero.position(), dx=hero_dx, dy=hero_dy):
+        if self._dungeon.is_movement_possible(*self._hero.position(), hero_dx, hero_dy):
             self._hero.move(hero_dx, hero_dy)
+            self._dungeon.update_visible()
 
     def render(self, surface: Surface) -> None:
         super().render(surface)
@@ -60,6 +61,8 @@ class SceneGame(AbstractScene):
         for y, row in enumerate(map_area):
             for x, cell in enumerate(row):
                 real_x, real_y = start_x + x, start_y + y
+                if not self._dungeon.is_visited(real_x, real_y):
+                    continue
                 brightness = self._calc_tile_brightness(real_x, real_y, hero_x, hero_y)
                 # rendering map tiles
                 if cell in Tiles.SPRITE.keys():
@@ -97,4 +100,4 @@ class SceneGame(AbstractScene):
         return brightness
 
     def _calc_distance_brightness(self, distance: float) -> float:
-        return 0.35 + 5.0 / distance
+        return 0.25 + 4.0 / distance  # todo: make constants as settings
