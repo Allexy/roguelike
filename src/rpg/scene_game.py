@@ -1,9 +1,8 @@
 from pygame import Surface, key, K_LEFT, K_RIGHT, K_UP, K_DOWN, time
 from rpg.scene import AbstractScene, SpriteSheet
-from rpg.dungeon import Dungeon
+from rpg.dungeon import Dungeon, Tiles
 from rpg.obj_hero import Hero
 from rpg.utils import Rect, Point
-from rpg.dungeon import _Generator
 
 
 class SceneGame(AbstractScene):
@@ -63,26 +62,8 @@ class SceneGame(AbstractScene):
                 real_x, real_y = start_x + x, start_y + y
                 brightness = self._calc_tile_brightness(real_x, real_y, hero_x, hero_y)
                 # rendering map tiles
-                if cell == _Generator.TILE_FLOOR:
-                    self._sprites.draw(surface, 2, 0, x, y, brightness)
-                elif cell == _Generator.TILE_CORRIDOR:
-                    self._sprites.draw(surface, 2, 1, x, y, brightness)
-                elif cell == _Generator.TILE_WALL_H:
-                    self._sprites.draw(surface, 1, 2, x, y, brightness)
-                elif cell == _Generator.TILE_WALL_V:
-                    self._sprites.draw(surface, 0, 2, x, y, brightness)
-                elif cell == _Generator.TILE_WALL_TL:
-                    self._sprites.draw(surface, 0, 0, x, y, brightness)
-                elif cell == _Generator.TILE_WALL_TR:
-                    self._sprites.draw(surface, 0, 1, x, y, brightness)
-                elif cell == _Generator.TILE_WALL_BR:
-                    self._sprites.draw(surface, 1, 1, x, y, brightness)
-                elif cell == _Generator.TILE_WALL_BL:
-                    self._sprites.draw(surface, 1, 0, x, y, brightness)
-                elif cell == _Generator.TILE_DOOR:
-                    self._sprites.draw(surface, 2, 3, x, y, brightness)
-                elif cell == _Generator.TILE_CAVE:
-                    self._sprites.draw(surface, 2, 2, x, y, brightness)
+                if cell in Tiles.SPRITE.keys():
+                    self._sprites.draw(surface, *Tiles.SPRITE[cell], x, y, brightness=brightness)
                 # render map objects
                 self._render_map_objects(real_x, real_y, x, y, brightness)
                 # render hero

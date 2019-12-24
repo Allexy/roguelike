@@ -2,7 +2,7 @@ from __future__ import annotations
 from pygame import Surface, image, BLEND_RGBA_SUB
 
 
-class Object:
+class SceneObject:
 
     def update(self) -> None:
         pass
@@ -11,7 +11,7 @@ class Object:
         pass
 
 
-class AbstractScene(Object):
+class AbstractScene(SceneObject):
 
     def is_finished(self) -> bool:
         pass

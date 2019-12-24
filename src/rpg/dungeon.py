@@ -75,11 +75,7 @@ class Room(Rect):
         return self._y * self._x
 
 
-class _Generator:
-    NUMBER_OF_ROOMS = 10
-    MIN_ROOM_SIZE = 8
-    MAX_ROOM_SIZE = 16
-    MIN_DISTANCE_BETWEEN_ROOMS = 8
+class Tiles:
     TILE_CAVE = -1
     TILE_GROUND = 0
     TILE_CORRIDOR = 1
@@ -92,18 +88,74 @@ class _Generator:
     TILE_WALL_BL = 9
     TILE_WALL_BR = 10
 
-    COST_CAVES_ALLOWED = {TILE_CAVE, TILE_GROUND}
-    NEED_CONNECT_ALLOWED = {TILE_GROUND}
-    CONNECT_CAVES_ALLOWED = {TILE_GROUND, TILE_CAVE}
-    COST_ROOMS_ALLOWED = {TILE_CORRIDOR, TILE_GROUND, TILE_WALL_H, TILE_WALL_V, TILE_FLOOR, TILE_DOOR,
-                          TILE_WALL_TL, TILE_WALL_BL, TILE_WALL_BR, TILE_WALL_TR}
-    CONNECT_ROOMS_ALLOWED = {TILE_GROUND, TILE_WALL_H, TILE_WALL_V, TILE_FLOOR, TILE_CORRIDOR, TILE_DOOR}
-    CLEAN_UP_ALLOWED = {TILE_CORRIDOR}
+    SPRITE = {
+        TILE_FLOOR: (2, 0),
+        TILE_CORRIDOR: (2, 1),
+        TILE_WALL_H: (1, 2),
+        TILE_WALL_V: (0, 2),
+        TILE_WALL_TL: (0, 0),
+        TILE_WALL_TR: (0, 1),
+        TILE_WALL_BR: (1, 1),
+        TILE_WALL_BL: (1, 0),
+        TILE_DOOR: (2, 3),
+        TILE_CAVE: (2, 2),
+    }
+
+
+class _Generator:
+    NUMBER_OF_ROOMS = 10
+    MIN_ROOM_SIZE = 8
+    MAX_ROOM_SIZE = 16
+    MIN_DISTANCE_BETWEEN_ROOMS = 8
+
+    DRUNK_MAN_ALLOWED = {
+        Tiles.TILE_CAVE
+    }
+
+    COST_CAVES_ALLOWED = {
+        Tiles.TILE_CAVE,
+        Tiles.TILE_GROUND
+    }
+
+    NEED_CONNECT_ALLOWED = {
+        Tiles.TILE_GROUND
+    }
+
+    CONNECT_CAVES_ALLOWED = {
+        Tiles.TILE_GROUND,
+        Tiles.TILE_CAVE
+    }
+
+    COST_ROOMS_ALLOWED = {
+        Tiles.TILE_CORRIDOR,
+        Tiles.TILE_GROUND,
+        Tiles.TILE_WALL_H,
+        Tiles.TILE_WALL_V,
+        Tiles.TILE_FLOOR,
+        Tiles.TILE_DOOR,
+        Tiles.TILE_WALL_TL,
+        Tiles.TILE_WALL_BL,
+        Tiles.TILE_WALL_BR,
+        Tiles.TILE_WALL_TR
+    }
+
+    CONNECT_ROOMS_ALLOWED = {
+        Tiles.TILE_GROUND,
+        Tiles.TILE_WALL_H,
+        Tiles.TILE_WALL_V,
+        Tiles.TILE_FLOOR,
+        Tiles.TILE_CORRIDOR,
+        Tiles.TILE_DOOR
+    }
+
+    CLEAN_UP_ALLOWED = {
+        Tiles.TILE_CORRIDOR
+    }
 
     def __init__(self, width: int, height: int, progress: Callable[[int], None] = None) -> None:
         self._width = width
         self._height = height
-        self._data = Grid(width, height, init_value=_Generator.TILE_CAVE)
+        self._data = Grid(width, height, init_value=Tiles.TILE_CAVE)
         self._progress_callback = progress
         self._rooms = list()
 
@@ -141,17 +193,16 @@ class _Generator:
                 y += 1
             elif select == 3 and x > 0:  # left
                 x -= 1
-            for dx, dy in self._data.neighbours(x, y, allowed={_Generator.TILE_CAVE}):
-                if self._data.get(dx, dy) == _Generator.TILE_CAVE:
-                    self._data.put(dx, dy, _Generator.TILE_GROUND)
+            for dx, dy in self._data.neighbours(x, y, allowed=_Generator.DRUNK_MAN_ALLOWED):
+                self._data.put(dx, dy, Tiles.TILE_GROUND)
 
     def _cost_caves(self, to: tuple) -> int:
         weight = 0
         for x, y in self._data.neighbours(*to, allowed=_Generator.COST_CAVES_ALLOWED, diagonals=True):
             neighbour_type = self._data.get(x, y)
-            if neighbour_type == _Generator.TILE_CAVE:
+            if neighbour_type == Tiles.TILE_CAVE:
                 weight += 1
-            elif neighbour_type == _Generator.TILE_GROUND:
+            elif neighbour_type == Tiles.TILE_GROUND:
                 weight += 10  # in order to make more ways
 
         return weight
@@ -162,8 +213,8 @@ class _Generator:
             path = path_finder.find(a.center(), b.center(), allowed=_Generator.CONNECT_CAVES_ALLOWED)
             for ptr in path:
                 for x, y in self._data.neighbours(*ptr, allowed=_Generator.CONNECT_CAVES_ALLOWED, diagonals=True):
-                    if self._data.get(x, y) == _Generator.TILE_CAVE:
-                        self._data.put(x, y, _Generator.TILE_CORRIDOR)
+                    if self._data.get(x, y) == Tiles.TILE_CAVE:
+                        self._data.put(x, y, Tiles.TILE_CORRIDOR)
             for ptr in path:
                 self._drunk_man(*ptr, depth=random.randrange(2, 4))
         except PathNotFoundError:
@@ -184,21 +235,21 @@ class _Generator:
         weight = 0
         for x, y in self._data.neighbours(*to, allowed=_Generator.COST_ROOMS_ALLOWED, diagonals=True):
             neighbour_type = self._data.get(x, y)
-            if neighbour_type == _Generator.TILE_GROUND:
+            if neighbour_type == Tiles.TILE_GROUND:
                 weight += 5
-            elif neighbour_type == _Generator.TILE_FLOOR:
+            elif neighbour_type == Tiles.TILE_FLOOR:
                 weight += 1
-            elif neighbour_type == _Generator.TILE_WALL_H or neighbour_type == _Generator.TILE_WALL_V:
+            elif neighbour_type == Tiles.TILE_WALL_H or neighbour_type == Tiles.TILE_WALL_V:
                 weight += 50
-            elif neighbour_type == _Generator.TILE_WALL_TL or neighbour_type == _Generator.TILE_WALL_BL:
+            elif neighbour_type == Tiles.TILE_WALL_TL or neighbour_type == Tiles.TILE_WALL_BL:
                 weight += 70
-            elif neighbour_type == _Generator.TILE_WALL_BR or neighbour_type == _Generator.TILE_WALL_TR:
+            elif neighbour_type == Tiles.TILE_WALL_BR or neighbour_type == Tiles.TILE_WALL_TR:
                 weight += 70
-            elif neighbour_type == _Generator.TILE_CORRIDOR:
+            elif neighbour_type == Tiles.TILE_CORRIDOR:
                 weight += 1
-            elif neighbour_type == _Generator.TILE_DOOR:
+            elif neighbour_type == Tiles.TILE_DOOR:
                 weight += 1
-            elif neighbour_type == _Generator.TILE_CAVE:
+            elif neighbour_type == Tiles.TILE_CAVE:
                 weight += 10
         return weight
 
@@ -207,10 +258,10 @@ class _Generator:
         try:
             for ptr in path_finder.find(a.center(), b.center(), allowed=_Generator.CONNECT_ROOMS_ALLOWED):
                 cell_type = self._data.get(*ptr)
-                if cell_type == _Generator.TILE_WALL_H or cell_type == _Generator.TILE_WALL_V:
-                    self._data.put(*ptr, _Generator.TILE_DOOR)
-                elif cell_type == _Generator.TILE_GROUND:
-                    self._data.put(*ptr, _Generator.TILE_CORRIDOR)
+                if cell_type == Tiles.TILE_WALL_H or cell_type == Tiles.TILE_WALL_V:
+                    self._data.put(*ptr, Tiles.TILE_DOOR)
+                elif cell_type == Tiles.TILE_GROUND:
+                    self._data.put(*ptr, Tiles.TILE_CORRIDOR)
         except PathNotFoundError:
             pass
 
@@ -221,9 +272,9 @@ class _Generator:
     def _clean_up(self) -> None:
         for x in range(1, self._width - 1):
             for y in range(1, self._height - 1):
-                if self._data.get(x, y) == _Generator.TILE_CAVE:
+                if self._data.get(x, y) == Tiles.TILE_CAVE:
                     for nx, ny in self._data.neighbours(x, y, allowed=_Generator.CLEAN_UP_ALLOWED, diagonals=True):
-                        self._data.put(nx, ny, _Generator.TILE_GROUND)
+                        self._data.put(nx, ny, Tiles.TILE_GROUND)
 
     def _progress(self, progress: int):
         if self._progress_callback is not None:
@@ -234,19 +285,19 @@ class _Generator:
         for x in range(x1, x2 + 1):
             for y in range(y1, y2 + 1):
                 if x == x1 and y == y1:
-                    self._data.put(x, y, _Generator.TILE_WALL_TL)
+                    self._data.put(x, y, Tiles.TILE_WALL_TL)
                 elif x == x1 and y == y2:
-                    self._data.put(x, y, _Generator.TILE_WALL_BL)
+                    self._data.put(x, y, Tiles.TILE_WALL_BL)
                 elif x == x2 and y == y1:
-                    self._data.put(x, y, _Generator.TILE_WALL_TR)
+                    self._data.put(x, y, Tiles.TILE_WALL_TR)
                 elif x == x2 and y == y2:
-                    self._data.put(x, y, _Generator.TILE_WALL_BR)
+                    self._data.put(x, y, Tiles.TILE_WALL_BR)
                 elif y == y1 or y == y2:
-                    self._data.put(x, y, _Generator.TILE_WALL_H)
+                    self._data.put(x, y, Tiles.TILE_WALL_H)
                 elif x == x1 or x == x2:
-                    self._data.put(x, y, _Generator.TILE_WALL_V)
+                    self._data.put(x, y, Tiles.TILE_WALL_V)
                 else:
-                    self._data.put(x, y, _Generator.TILE_FLOOR)
+                    self._data.put(x, y, Tiles.TILE_FLOOR)
 
     def run(self) -> None:
         while len(self._rooms) < _Generator.NUMBER_OF_ROOMS:
@@ -272,16 +323,24 @@ class _Generator:
 
 
 class Dungeon:
-    STOP_TILES = {
-        _Generator.TILE_DOOR,
-        _Generator.TILE_CAVE,
-        _Generator.TILE_WALL_TL,
-        _Generator.TILE_WALL_TR,
-        _Generator.TILE_WALL_BR,
-        _Generator.TILE_WALL_BL,
-        _Generator.TILE_WALL_H,
-        _Generator.TILE_WALL_V,
-    }
+
+    MOVEMENT_ALLOWED = (
+        Tiles.TILE_DOOR,
+        Tiles.TILE_CORRIDOR,
+        Tiles.TILE_FLOOR,
+        Tiles.TILE_GROUND
+    )
+
+    STOP_TILES = (
+        Tiles.TILE_DOOR,
+        Tiles.TILE_CAVE,
+        Tiles.TILE_WALL_TL,
+        Tiles.TILE_WALL_TR,
+        Tiles.TILE_WALL_BR,
+        Tiles.TILE_WALL_BL,
+        Tiles.TILE_WALL_H,
+        Tiles.TILE_WALL_V,
+    )
 
     def __init__(self, width: int, height: int, progress: Callable[[int], None] = None):
         generator = _Generator(width, height, progress)
@@ -311,12 +370,7 @@ class Dungeon:
         if not self._data.in_bounds(new_x, new_y):
             return False
         cell_type = self._data.get(new_x, new_y)
-        return cell_type in (
-            _Generator.TILE_DOOR,
-            _Generator.TILE_CORRIDOR,
-            _Generator.TILE_FLOOR,
-            _Generator.TILE_GROUND
-        )
+        return cell_type in Dungeon.MOVEMENT_ALLOWED
 
 
 if __name__ == '__main__':
@@ -324,15 +378,15 @@ if __name__ == '__main__':
     data = gen.area(Rect(0, 0, 128, 128))
     for row in data:
         for char in row:
-            if char == _Generator.TILE_WALL_H or char == _Generator.TILE_WALL_V:
+            if char == Tiles.TILE_WALL_H or char == Tiles.TILE_WALL_V:
                 print('##', sep='', end='')
-            elif char == _Generator.TILE_FLOOR:
+            elif char == Tiles.TILE_FLOOR:
                 print('++', sep='', end='')
-            elif char == _Generator.TILE_CORRIDOR:
+            elif char == Tiles.TILE_CORRIDOR:
                 print('[]', sep='', end='')
-            elif char == _Generator.TILE_DOOR:
+            elif char == Tiles.TILE_DOOR:
                 print('HH', sep='', end='')
-            elif char == _Generator.TILE_CAVE:
+            elif char == Tiles.TILE_CAVE:
                 print('CC', sep='', end='')
             else:
                 print('..', sep='', end='')

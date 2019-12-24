@@ -1,9 +1,9 @@
 from pygame import Surface
-from rpg.scene import Object
+from rpg.scene import SceneObject
 from rpg.scene_progress import SceneProgress
 
 
-class RPG(Object):
+class RPG(SceneObject):
 
     def __init__(self, w: int, h: int) -> None:
         self._scene = SceneProgress(w, h)
