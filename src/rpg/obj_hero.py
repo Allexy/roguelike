@@ -1,8 +1,8 @@
-from rpg.scene import SceneObject
+from rpg.scene import MovableGameObject
 from rpg.utils import Point
 
 
-class Hero(SceneObject):
+class Hero(MovableGameObject):
 
     def __init__(self, position: Point):
         self._position = position

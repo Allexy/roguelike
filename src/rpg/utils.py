@@ -67,6 +67,8 @@ class Bounded:
 class Rect(Bounded):
 
     def __init__(self, x: int, y: int, width: int, height: int):
+        if width < 1 or height < 1:
+            raise ValueError("Width and height cannot be lesser than 1")
         self._x = x
         self._y = y
         self._width = width

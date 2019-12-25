@@ -20,7 +20,7 @@ class SceneProgress(AbstractScene):
             self._ready = data_ready
 
         def run(self) -> None:
-            self._ready(Dungeon(96, 96, self._progress))
+            self._ready(Dungeon(256, 256, self._progress))
 
     def __init__(self, width: int, height: int):
         super().__init__()

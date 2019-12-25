@@ -3,6 +3,8 @@ import random
 from typing import Callable
 from heapq import heappush as push, heappop as pop
 
+from rpg.obj_loot import Loot
+from rpg.obj_monsters import Monster
 from rpg.utils import Point, Grid, Rect
 
 
@@ -76,6 +78,7 @@ class Room(Rect):
 
 
 class Tiles:
+    # tiles
     TILE_CAVE = -1
     TILE_GROUND = 0
     TILE_CORRIDOR = 1
@@ -87,8 +90,31 @@ class Tiles:
     TILE_WALL_TR = 8
     TILE_WALL_BL = 9
     TILE_WALL_BR = 10
+    # objects
+    OBJ_WEAPON = 0
+    OBJ_ROD = 1
+    OBJ_ARMOR = 2
+    OBJ_RING = 3
+    OBJ_FOOD = 4
+    OBJ_POTION = 5
+    OBJ_COINS = 6
+    OBJ_SCROLL = 7
+    # monsters
+    MON_BAT = 0
+    MON_SOMETHING = 1
+    MON_CENTAUR = 2
+    MON_HYDRA = 3
+    MON_KIWI = 4
+    MON_VENUS = 5
+    MON_GRIFFIN = 6
+    MON_TROLL = 7
+    MON_GHOST = 8
+    MON_DRAGON = 9
+    MON_BLACK_BIRD = 10
+    MON_LEPRECHAUN = 11
+    MON_ZOMBIE_GIRL = 12
 
-    SPRITE = {
+    SPRITE_TILE = {
         TILE_FLOOR: (2, 0),
         TILE_GROUND: (2, 5),
         TILE_CORRIDOR: (2, 1),
@@ -100,6 +126,33 @@ class Tiles:
         TILE_WALL_BL: (1, 0),
         TILE_DOOR: (2, 3),
         TILE_CAVE: (2, 2),
+    }
+
+    SPRITE_OBJECT = {
+        OBJ_WEAPON: (0, 5),
+        OBJ_ROD: (1, 5),
+        OBJ_ARMOR: (0, 6),
+        OBJ_RING: (1, 6),
+        OBJ_FOOD: (0, 7),
+        OBJ_POTION: (1, 7),
+        OBJ_COINS: (1, 4),
+        OBJ_SCROLL: (2, 4)
+    }
+
+    SPRITE_MONSTER = {
+        MON_BAT: (3, 1),
+        MON_SOMETHING: (3, 0),
+        MON_CENTAUR: (3, 2),
+        MON_HYDRA: (3, 3),
+        MON_KIWI: (3, 4),
+        MON_VENUS: (3, 5),
+        MON_GRIFFIN: (3, 6),
+        MON_TROLL: (3, 7),
+        MON_GHOST: (3, 8),
+        MON_DRAGON: (3, 9),
+        MON_BLACK_BIRD: (3, 10),
+        MON_LEPRECHAUN: (3, 11),
+        MON_ZOMBIE_GIRL: (3, 12),
     }
 
 
@@ -159,6 +212,7 @@ class _Generator:
         self._data = Grid(width, height, init_value=Tiles.TILE_CAVE)
         self._progress_callback = progress
         self._rooms = list()
+        self._cave_nooks = list()
 
     def _random_room(self) -> Room:
         size = random.randrange(_Generator.MIN_ROOM_SIZE, _Generator.MAX_ROOM_SIZE)
@@ -181,21 +235,29 @@ class _Generator:
             else:
                 return new_room
 
-    def _drunk_man(self, x: int, y: int, depth: int = 5) -> None:
-        if not self._data.in_bounds(x, y):
-            return
+    def _drunk_man(self, start_x: int, start_y: int, depth: int = 5) -> tuple:
+        if not self._data.in_bounds(start_x, start_y):
+            return -1, -1, -1
+        drunk_x, drunk_y = start_x, start_y
+        nk_x, nk_y, nk_d = 0, 0, 0
         for _ in range(0, depth):
             select = random.randrange(0, 4)
-            if select == 0 and y > 0:  # up
-                y -= 1
-            elif select == 1 and x < self._width - 1:  # right
-                x += 1
-            elif select == 2 and y < self._height - 1:  # down
-                y += 1
-            elif select == 3 and x > 0:  # left
-                x -= 1
-            for dx, dy in self._data.neighbours(x, y, allowed=_Generator.DRUNK_MAN_ALLOWED):
-                self._data.put(dx, dy, Tiles.TILE_GROUND)
+            if select == 0 and drunk_y > 0:  # up
+                drunk_y -= 1
+            elif select == 1 and drunk_x < self._width - 1:  # right
+                drunk_x += 1
+            elif select == 2 and drunk_y < self._height - 1:  # down
+                drunk_y += 1
+            elif select == 3 and drunk_x > 0:  # left
+                drunk_x -= 1
+            for x, y in self._data.neighbours(drunk_x, drunk_y, allowed=_Generator.DRUNK_MAN_ALLOWED):
+                self._data.put(x, y, Tiles.TILE_GROUND)
+                d = Point.dst(x, y, start_x, start_y)
+                if d > nk_d:
+                    nk_d = d
+                    nk_x = x
+                    nk_y = y
+        return nk_x, nk_y, nk_d
 
     def _cost_caves(self, to: tuple) -> int:
         weight = 0
@@ -217,7 +279,10 @@ class _Generator:
                     if self._data.get(x, y) == Tiles.TILE_CAVE:
                         self._data.put(x, y, Tiles.TILE_CORRIDOR)
             for ptr in path:
-                self._drunk_man(*ptr, depth=random.randrange(2, 4))
+                x, y, d = self._drunk_man(*ptr, depth=random.randrange(2, 5))
+                if d >= 2:
+                    self._cave_nooks.append(Point(x, y))
+
         except PathNotFoundError:
             pass
 
@@ -227,10 +292,15 @@ class _Generator:
 
     def _generate_caves(self) -> None:
         for room in self._rooms:
-            (left, top, right, bottom) = room.bounds()
+            left, top, right, bottom = room.bounds()
+            center_x, center_y = room.center()
+            distance = min(abs(center_x - left), abs(center_y - top)) + 1
             for cx in range(left, right + 1):
                 for cy in range(top, bottom + 1):
-                    self._drunk_man(cx, cy, depth=random.randrange(4, 7))
+                    x, y, _ = self._drunk_man(cx, cy, depth=random.randrange(4, 7))
+                    d = Point.dst(x, y, center_x, center_y)
+                    if d > distance and _ > 0 and x != left and x != right and y != top and y != bottom:
+                        self._cave_nooks.append(Point(x, y))
 
     def _cost_rooms(self, to: tuple) -> int:
         weight = 0
@@ -322,8 +392,12 @@ class _Generator:
     def rooms(self):
         return self._rooms
 
+    def nooks(self):
+        return self._cave_nooks
+
 
 class Dungeon:
+    # fog of war constants
     TILE_NOT_VISITED = 0
     TILE_VISITED = 1
 
@@ -351,8 +425,64 @@ class Dungeon:
         self._data = generator.data()
         self._fog_of_war = Grid(width, height, Dungeon.TILE_NOT_VISITED)
         self._rooms = generator.rooms()
+        self._nooks = generator.nooks()
+        self._objects = list()
+        self._monsters = list()
         self._hero_position = Point(*self._rooms[0].center())
+        self._place_objects()
         self.update_visible()
+
+    def _place_objects(self) -> None:
+        random_objects = [
+            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+            -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2,
+            -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2,
+            -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2,
+            Tiles.OBJ_FOOD, Tiles.OBJ_POTION, Tiles.OBJ_POTION, Tiles.OBJ_COINS, Tiles.OBJ_COINS,
+        ]
+        random_monsters = [
+            Tiles.MON_BAT, Tiles.MON_BAT, Tiles.MON_BAT, Tiles.MON_BAT, Tiles.MON_BAT,
+            Tiles.MON_BAT, Tiles.MON_BAT, Tiles.MON_BAT, Tiles.MON_BAT, Tiles.MON_BAT,
+            Tiles.MON_BAT, Tiles.MON_BAT, Tiles.MON_BAT, Tiles.MON_BAT, Tiles.MON_SOMETHING,
+            Tiles.MON_CENTAUR, Tiles.MON_KIWI, Tiles.MON_VENUS, Tiles.MON_TROLL, Tiles.MON_GHOST,
+            Tiles.MON_BLACK_BIRD, Tiles.MON_LEPRECHAUN, Tiles.MON_ZOMBIE_GIRL
+        ]
+        random.shuffle(random_objects)
+        random.shuffle(random_monsters)
+        for nook_point in self._nooks:
+            random.shuffle(random_objects)  # shuffle twice:)
+            obj_id = random.choice(random_objects)
+            if obj_id < 0:
+                if obj_id == -1:
+                    self._monsters.append(Monster(*nook_point.tup(), random.choice(random_monsters)))
+                continue
+            self._objects.append(Loot(*nook_point.tup(), obj_id))
+        room_monsters = [
+            Tiles.MON_HYDRA, Tiles.MON_GRIFFIN, Tiles.MON_DRAGON, Tiles.MON_LEPRECHAUN,
+            Tiles.MON_ZOMBIE_GIRL, Tiles.MON_CENTAUR
+        ]
+        room_objects = [
+            Tiles.OBJ_WEAPON, Tiles.OBJ_ROD, Tiles.OBJ_ARMOR, Tiles.OBJ_RING, Tiles.OBJ_SCROLL,
+            Tiles.OBJ_POTION, Tiles.OBJ_COINS, Tiles.OBJ_COINS
+        ]
+        random.shuffle(room_monsters)
+        random.shuffle(room_objects)
+        for room in self._rooms:
+            l, t, r, b = room.bounds()
+            if random.random() < 0.5:
+                obj_id = random.choice(room_objects)
+                rand_x = random.randrange(l+1, r-1)
+                rand_y = random.randrange(t+1, b-1)
+                self._objects.append(Loot(rand_x, rand_y, obj_id))
+
+            if random.random() < 0.5:
+                mon_id = random.choice(room_monsters)
+                rand_x = random.randrange(l+1, r-1)
+                rand_y = random.randrange(t+1, b-1)
+                self._monsters.append(Monster(rand_x, rand_y, mon_id))
+
+        del self._nooks
+        del self._rooms
 
     def area(self, area: Rect) -> Grid:
         return self._data.copy(*area.bounds())
@@ -392,6 +522,12 @@ class Dungeon:
             for y in range(start_y, end_y):
                 if self._hero_position.distance(x, y) <= dist:
                     self._fog_of_war.put(x, y, Dungeon.TILE_VISITED)
+
+    def objects(self) -> list:
+        return self._objects
+
+    def monsters(self) -> list:
+        return self._monsters
 
 
 if __name__ == '__main__':

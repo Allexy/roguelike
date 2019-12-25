@@ -65,16 +65,28 @@ class SceneGame(AbstractScene):
                     continue
                 brightness = self._calc_tile_brightness(real_x, real_y, hero_x, hero_y)
                 # rendering map tiles
-                if cell in Tiles.SPRITE.keys():
-                    self._sprites.draw(surface, *Tiles.SPRITE[cell], x, y, brightness=brightness)
+                if cell in Tiles.SPRITE_TILE.keys():
+                    self._sprites.draw(surface, *Tiles.SPRITE_TILE[cell], x, y, brightness=brightness)
                 # render map objects
-                self._render_map_objects(real_x, real_y, x, y, brightness)
+                self._render_map_objects(surface, real_x, real_y, x, y, brightness)
+                self._render_map_monsters(surface, real_x, real_y, x, y, brightness)
                 # render hero
                 if real_x == hero_x and real_y == hero_y:
                     self._sprites.draw(surface, 0, 4, x, y, 1.0)
 
-    def _render_map_objects(self, real_x: int, real_y: int, draw_x: int, draw_y: int, brightness: float) -> None:
-        pass
+    def _render_map_objects(self, surface: Surface, obj_x: int, obj_y: int, x: int, y: int, brightness: float) -> None:
+        for loot in self._dungeon.objects():
+            loot_x, loot_y = loot.position()
+            if loot_x != obj_x or loot_y != obj_y:
+                continue
+            self._sprites.draw(surface, *Tiles.SPRITE_OBJECT[loot.type()], x, y, brightness=brightness)
+
+    def _render_map_monsters(self, surface: Surface, obj_x: int, obj_y: int, x: int, y: int, brightness: float) -> None:
+        for monster in self._dungeon.monsters():
+            mon_x, mon_y = monster.position()
+            if mon_x != obj_x or mon_y != obj_y:
+                continue
+            self._sprites.draw(surface, *Tiles.SPRITE_MONSTER[monster.type()], x, y, brightness=brightness)
 
     def _calc_tile_brightness(self, real_x: int, real_y: int, hero_x: int, hero_y: int) -> float:
         # Ray cast from hero to point
@@ -83,9 +95,7 @@ class SceneGame(AbstractScene):
         mx = max(abs(dx), abs(dy))
         if mx == 0:
             return 1.0
-
         brightness = self._calc_distance_brightness(Point.dst(hero_x, hero_y, real_x, real_y))
-
         vec = (dx / mx, dy / mx)
         x, y = float(hero_x), float(hero_y)
         row, col = 0, 0
@@ -100,4 +110,4 @@ class SceneGame(AbstractScene):
         return brightness
 
     def _calc_distance_brightness(self, distance: float) -> float:
-        return 0.25 + 4.0 / distance  # todo: make constants as settings
+        return 0.015 + 6.6 / distance  # todo: make constants as settings

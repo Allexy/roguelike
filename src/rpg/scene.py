@@ -2,6 +2,18 @@ from __future__ import annotations
 from pygame import Surface, image, BLEND_RGBA_SUB
 
 
+class GameObject:
+
+    def position(self) -> tuple:
+        pass
+
+
+class MovableGameObject(GameObject):
+
+    def move(self, dx: int = 0, dy: int = 0) -> None:
+        pass
+
+
 class SceneObject:
 
     def update(self) -> None:
